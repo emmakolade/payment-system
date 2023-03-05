@@ -1,1 +1,1 @@
-web: python manage.py migrate && gunicorn speechtext.wsgi
+web: python manage.py migrate && gunicorn payment.wsgi
