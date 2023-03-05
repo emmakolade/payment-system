@@ -22,7 +22,7 @@ from django.conf.urls.static import static
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Speech to Text Api",
+        title="Payment System",
         default_version='v1',
         description="SpeechtoText Documentation",
         terms_of_service="https://www.google.com/policies/terms/",
@@ -38,6 +38,5 @@ urlpatterns = [
     path('', schema_view.with_ui('swagger',
                                  cache_timeout=0), name='schema-swagger-ui'),
     path('authentication/', include('authentication.urls')),
-    # path('pay/', include('paymentmethod.urls')),
     path('testpay/', include('testpay.urls')),
 ]
