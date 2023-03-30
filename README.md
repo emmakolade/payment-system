@@ -69,7 +69,7 @@ To use the API locally, follow these steps:
 
 ### Fund Wallet
 
-- **URL**: testpay/fund-wallet/
+- **URL**: testpay/wallet/fund
 - **Method**: POST
   - Data parameters:
   - amount (required)
@@ -77,43 +77,43 @@ To use the API locally, follow these steps:
   - Code: 200 OK
   - Content: A message indicating the wallet has been successfully funded.
 
-Wallet Balance
+### Wallet Balance
 
-    URL: testpay/wallet-balance/
-    Method: GET
-    Data parameters:
-        None
-    Success response
-        Code: 200 OK
-        Content: The user's wallet object containing their current balance.
+- **URL**: testpay/wallet/balance/
+- **Method**: GET
+- Data parameters:
+    None
+- **Success response**
+    Code: 200 OK
+    Content: The user's wallet object containing their current balance.
 
-Create Product
+### Create Product
 
-    URL: testpay/create-product/
-    Method: POST
-    Data parameters:
+    - **URL**: testpay/products/create
+    - **Method**: POST
+    - **Data parameters:
         product_name (required)
         price (required)
-    Success response
+    - **Success response**
         Code: 200 OK
         Content: The created product object.
 
-List Products
+### List Products
 
-    URL: testpay/product-list/
-    Method: GET
+    - **URL**: testpay/products/list
+    - **Method**: GET
     Data parameters:
         None
-    Success response
+    - **Success response**
         Code: 200 OK
         Content: A list of all product objects.
 
-List Payments
+### List Payments
 
-    URL: testpay/payment-list/
-    Method: GET
+  **URL**: testpay/payment/list
+  **Method**: GET
     Data parameters:
         None
-    Success response
+  **Success response**
         Code: 200 OK
         Content: A list of all payment objects made
