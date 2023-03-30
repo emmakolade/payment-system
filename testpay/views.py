@@ -1,36 +1,11 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .serializers import PaymentSerializer, PaymentMethodSerializer
-from .models import Payment
-from .tasks import charge_card
-
-class PaymentCreateView(generics.CreateAPIView):
-    serializer_class = PaymentMethodSerializer
-    permission_classes = (permissions.IsAuthenticated,)
-    # lookup_field = 'id'
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(user=request.user)
-        return Response(serializer.data)
+from .serializers import PaymentSerializer, WalletSerializer, FundWalletSerializer, ProductSerializer
+from .models import Product, Payment, Wallet
+from authentication.models import User
 
 
-class PaymentMethodEditView(generics.RetrieveUpdateAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = PaymentMethodSerializer
-
-    def get_object(self):
-        return get_object_or_404(Payment, user=self.request.user)
-
-
-class PaymentHistoryView(generics.ListAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = PaymentSerializer
-
-    def get_queryset(self):
-        return Payment.objects.filter(user=self.request.user)
 
 
 class PaymentAutomationView(generics.CreateAPIView):
@@ -38,37 +13,72 @@ class PaymentAutomationView(generics.CreateAPIView):
     serializer_class = PaymentSerializer
 
     def post(self, request, *args, **kwargs):
-        charge_card.apply_async(args=[request.user.id])
-        return Response({"status": "Payment automation started."})
+        product_id = self.kwargs['product_id']
+        product = get_object_or_404(Product, id=product_id)
+        wallet = Wallet.objects.get(user=request.user)
+
+        if wallet.balance < product.price:
+            return Response({"error": "Insufficient balance in wallet."}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment = Payment.objects.create(
+            product=product, user=request.user, is_recurring=True)
+        return Response({"status": "Payment made successfully."}, status=status.HTTP_202_ACCEPTED)
+
+class PaymentStopView(generics.DestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = PaymentSerializer
+
+    def delete(self, request, *args, **kwargs):
+        product_id = self.kwargs['product_id']
+        payment = Payment.objects.filter(
+            product_id=product_id, user=request.user, is_recurring=True).first()
+
+        if not payment:
+            return Response({"error": "No recurring payment found for the given product."}, status=status.HTTP_404_NOT_FOUND)
+
+        payment.is_recurring = False
+        payment.save()
+        return Response({"status": "Recurring payment stopped."}, status=status.HTTP_204_NO_CONTENT)
 
 
-# class PaymentTerminateView(generics.DestroyAPIView):
-#     permission_classes = (permissions.IsAuthenticated,)
-#     # serializer_class = PaymentSerializer
 
-#     def post(self, request, *args, **kwargs):
-#         charge_card.revoke(terminate=True)
-#         return Response({"status": "Payment automation terminated"})
+class FundWalletView(generics.CreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = FundWalletSerializer
 
-# # class PaymentAutomationView(generics.CreateAPIView):
-# #     permission_classes = (permissions.IsAuthenticated,)
-# #     serializer_class = PaymentSerializer
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        wallet, created = Wallet.objects.get_or_create(user=request.user)
+        wallet.balance += serializer.validated_data['amount']
+        wallet.save()
+        return Response({"status": "Your wallet has been successfully funded. You can now enjoy using your funds for purchases and transactions."})
 
-# #     def post(self, request, *args, **kwargs):
-# #         payment = self.serializer_class(data=request.data)
-# #         payment.is_valid(raise_exception=True)
-# #         charge_card.apply_async(args=[request.user.id])
-# #         payment.save(user=request.user)
-# #         return Response({"status": "Payment created."})
+class WalletBalanceView(generics.RetrieveAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = WalletSerializer
 
+    def get_object(self):
+        return get_object_or_404(Wallet, user=self.request.user)
 
-# # class PaymentDestroyView(generics.DestroyAPIView):
-# #     permission_classes = (permissions.IsAuthenticated,)
-# #     serializer_class = PaymentSerializer
-# #     queryset = Payment.objects.all()
+class ProductCreateView(generics.CreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = ProductSerializer
 
-# #     def delete(self, request, *args, **kwargs):
-# #         payment = self.get_object()
-# #         revoke(payment.task_id)
-# #         payment.delete()
-# #         return Response({"status": "Payment deleted."})
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+class ProductListView(generics.ListAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = ProductSerializer
+    queryset = Product.objects.all()
+    
+class PaymentListView(generics.ListAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = PaymentSerializer
+
+    def get_queryset(self):
+        return Payment.objects.filter(user=self.request.user)

@@ -1,18 +1,31 @@
 from rest_framework import serializers
-from .models import Payment, PaymentMethod
+from .models import Payment, Wallet, Product
+from authentication.models import User
 
 
-class PaymentMethodSerializer(serializers.ModelSerializer):
+class ProductSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PaymentMethod
-        fields = ['last_four_digits', 'expiry_month', 'expiry_year', 'cvv']
-        # read_only_fields = ['id']
+        model = Product
+        fields = ['id', 'product_name', 'price', 'created_at']
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-    # payment_method = PaymentMethodSerializer()
+    product = serializers.SlugRelatedField(
+        slug_field='id', queryset=Product.objects.all(), required=True)
 
     class Meta:
         model = Payment
-        fields = ['is_recurring', 'amount']
-        
+        fields = ['id', 'product', 'created_at', 'is_recurring']
+
+
+class WalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wallet
+        fields = ['balance']
+
+
+class FundWalletSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    def create(self, validated_data):
+        return validated_data

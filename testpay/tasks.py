@@ -1,79 +1,53 @@
 from celery import shared_task
 from django.utils import timezone
-from testpay.models import Payment
+from testpay.models import Payment, Wallet, Product
+from datetime import datetime, timedelta
+from django.utils import timezone
 from authentication.models import User
-import requests
-import json
-import random
-import math
+from celery.utils.log import get_task_logger
+from celery import Celery
+from celery.schedules import crontab
+from celery import shared_task
+from .models import Payment, Wallet
 
 
-@shared_task(bind=True)
-def charge_card(self, terminate=False):
+@shared_task
+def charge_wallet():
     payments = Payment.objects.filter(is_recurring=True)
     for payment in payments:
-        # Call Flutterwave API to process the payment
-        headers = {
-            'Authorization': 'Bearer FLWSECK-576b78e13005cd32b2a6486b86216ff8-X',
-            'Content-Type': 'application/json'
-        }
-        payload = {
-            'tx_ref': str(math.floor(1000000 + random.random()*9000000)),
-            'amount': payment.amount,
-            'currency': 'NGN',
-            'payment_options': 'card',
-            'customer': {
-                'email': payment.user.email,
-                'name': payment.user.full_name,
-            },
-            # 'meta': {
-            #     'product_name': payment.item_name,
-            #     'order_id': payment.order_id
-            # },
-            'redirect_url': 'https://your-website.com/redirect-url'
-        }
-        response = requests.post(
-            'https://api.flutterwave.com/v3/payments', headers=headers, json=payload)
-        if response.status_code == 200:
-            payment.is_recurring = True
-            payment.save()
-        else:
-            return {"status": "Payment processing failed."}
-    return "Payment processed successfully"
-
-
-# def charge_card(self, terminate=False):
-#     payments = Payment.objects.filter()
+        wallet = Wallet.objects.get(user=payment.user)
+        try:
+            if wallet.balance >= payment.product.price:
+                wallet.balance -= payment.product.price
+                wallet.save()
+                # Payment succeeded, show success message
+                return "Payment automated successfully"
+            else:
+                raise ValueError(
+                    "Insufficient balance in wallet for user "+str(payment.user.full_name))
+        except ValueError as e:
+            # Payment failed, show error message
+            print("Payment failed:", str(e))
+            payment.delete()
+# @shared_task
+# def charge_wallet():
+#     payments = Payment.objects.filter(is_recurring=True)
 #     for payment in payments:
-#         if terminate:
-#             # Terminate recurring payments
-#             payment.is_recurring = False
-#             payment.save()
-#             continue
-#         # Call Flutterwave API to process the payment
-#         headers = {
-#             'Authorization': 'Bearer FLWSECK-576b78e13005cd32b2a6486b86216ff8-X',
-#             'Content-Type': 'application/json'
-#         }
-#         payload = {
-#             'tx_ref': str(math.floor(1000000 + random.random()*9000000)),
-#             'amount': payment.amount,
-#             'currency': 'NGN',
-#             'payment_options': 'card',
-#             'customer': {
-#                 'email': payment.user.email,
-#                 'name': payment.user.full_name,
-#             },
-#             # 'meta': {
-#             #     'product_name': payment.item_name,
-#             #     'order_id': payment.order_id
-#             # },
-#             'redirect_url': 'https://your-website.com/redirect-url'
-#         }
-#         response = requests.post(
-#             'https://api.flutterwave.com/v3/payments', headers=headers, json=payload)
-#         if response.status_code == 200:
-#             payment.save()
+#         wallet = Wallet.objects.get(user=payment.user)
+#         if wallet.balance >= payment.product.price:
+#             wallet.balance -= payment.product.price
+#             wallet.save()
+#             return {"status": "Payment automated successfully."}
 #         else:
-#             return {"status": "Payment processing failed."}
-#     return "Payment processed successfully"
+#             payment.delete()
+# @shared_task
+# def charge_wallet(payment_id):
+#     payment = Payment.objects.get(id=payment_id)
+#     wallet = Wallet.objects.get(user=payment.user)
+#     if wallet.balance >= payment.product.price:
+#         wallet.balance -= payment.product.price
+#         wallet.save()
+#         payment.is_recurring = True
+#         payment.save()
+#     else:
+#         payment.delete()
