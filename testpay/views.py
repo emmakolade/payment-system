@@ -6,6 +6,23 @@ from .models import Product, Payment, Wallet
 from authentication.models import User
 
 
+class ProductCreateView(generics.CreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = ProductSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class ProductListView(generics.ListAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        return Product.objects.filter(user=self.request.user)
 
 
 class PaymentAutomationView(generics.CreateAPIView):
@@ -24,6 +41,7 @@ class PaymentAutomationView(generics.CreateAPIView):
             product=product, user=request.user, is_recurring=True)
         return Response({"status": "Payment made successfully."}, status=status.HTTP_202_ACCEPTED)
 
+
 class PaymentStopView(generics.DestroyAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = PaymentSerializer
@@ -41,6 +59,13 @@ class PaymentStopView(generics.DestroyAPIView):
         return Response({"status": "Recurring payment stopped."}, status=status.HTTP_204_NO_CONTENT)
 
 
+class PaymentListView(generics.ListAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = PaymentSerializer
+
+    def get_queryset(self):
+        return Payment.objects.filter(user=self.request.user)
+
 
 class FundWalletView(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -54,31 +79,10 @@ class FundWalletView(generics.CreateAPIView):
         wallet.save()
         return Response({"status": "Your wallet has been successfully funded. You can now enjoy using your funds for purchases and transactions."})
 
+
 class WalletBalanceView(generics.RetrieveAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = WalletSerializer
 
     def get_object(self):
         return get_object_or_404(Wallet, user=self.request.user)
-
-class ProductCreateView(generics.CreateAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = ProductSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-    
-class ProductListView(generics.ListAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = ProductSerializer
-    queryset = Product.objects.all()
-    
-class PaymentListView(generics.ListAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = PaymentSerializer
-
-    def get_queryset(self):
-        return Payment.objects.filter(user=self.request.user)

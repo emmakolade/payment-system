@@ -20,13 +20,11 @@ def charge_wallet():
             if wallet.balance >= payment.product.price:
                 wallet.balance -= payment.product.price
                 wallet.save()
-                # Payment succeeded, show success message
                 return "Payment automated successfully"
             else:
                 raise ValueError(
                     "Insufficient balance in wallet for user "+str(payment.user.full_name))
         except ValueError as e:
-            # Payment failed, show error message
             print("Payment failed:", str(e))
             payment.delete()
 # @shared_task
