@@ -32,7 +32,7 @@ class PaymentAutomationView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         product_id = self.kwargs['product_id']
         product = get_object_or_404(Product, id=product_id)
-        wallet = Wallet.objects.get(user=request.user)
+        wallet = Wallet.objects.get(user=self.request.user)
 
         if wallet.balance < product.price:
             return Response({"error": "Insufficient balance in wallet."}, status=status.HTTP_400_BAD_REQUEST)
@@ -74,7 +74,7 @@ class FundWalletView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        wallet, created = Wallet.objects.get_or_create(user=request.user)
+        wallet, created = Wallet.objects.get_or_create(user=self.request.user)
         wallet.balance += serializer.validated_data['amount']
         wallet.save()
         return Response({"status": "Your wallet has been successfully funded. You can now enjoy using your funds for purchases and transactions."})
